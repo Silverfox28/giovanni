@@ -1,0 +1,13 @@
+# Cartelle di compilazione
+build/
+cmake-build-*/
+out/
+.vs/
+.vscode/
+
+# File temporanei del salvataggio
+*.tmp
+
+# Eseguibili compilati a mano
+catalogo
+catalogo.exe

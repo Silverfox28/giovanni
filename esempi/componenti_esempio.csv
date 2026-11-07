@@ -1,0 +1,24 @@
+id;categoria;nome;valore;package;quantita;scorta_minima;posizione;fornitore;prezzo_unitario;note
+1;Resistore;Film metallico 1/4 W 1%;220;THT;80;20;Cassettiera A, cassetto 1;;0,02;Per LED a 5 V
+2;Resistore;Film metallico 1/4 W 1%;1k;THT;120;20;Cassettiera A, cassetto 2;;0,02;
+3;Resistore;Film metallico 1/4 W 1%;4k7;THT;15;20;Cassettiera A, cassetto 3;;0,02;Pull-up I2C
+4;Resistore;Film metallico 1/4 W 1%;10k;THT;200;30;Cassettiera A, cassetto 4;;0,02;
+5;Resistore;Trimmer multigiro;10k;THT;6;2;Cassettiera A, cassetto 8;;0,6;
+6;Condensatore;Ceramico multistrato;100n;THT;150;30;Cassettiera B, cassetto 1;;0,05;Disaccoppiamento
+7;Condensatore;Ceramico;22p;THT;40;10;Cassettiera B, cassetto 2;;0,04;Per quarzi
+8;Condensatore;Elettrolitico 25 V;100u;THT;25;5;Cassettiera B, cassetto 4;;0,1;
+9;Condensatore;Elettrolitico 16 V;1000uF;THT;4;5;Cassettiera B, cassetto 5;;0,35;
+10;Induttore;Induttore assiale;100uH;THT;10;2;Cassettiera B, cassetto 7;;0,25;
+11;Diodo;1N4007;1 A 1000 V;DO-41;60;10;Cassettiera C, cassetto 1;;0,03;Raddrizzatore
+12;Diodo;1N4148;segnale;DO-35;100;20;Cassettiera C, cassetto 2;;0,02;
+13;LED;LED;rosso 5 mm;THT;50;10;Cassettiera C, cassetto 4;;0,05;
+14;LED;LED;verde 5 mm;THT;8;10;Cassettiera C, cassetto 4;;0,05;
+15;Transistor;BC547;NPN;TO-92;40;10;Cassettiera C, cassetto 6;;0,08;
+16;Transistor;IRF540N;MOSFET canale N;TO-220;5;2;Cassettiera C, cassetto 7;;0,9;
+17;Circuito integrato;NE555;timer;DIP-8;12;4;Cassettiera D, cassetto 1;;0,3;
+18;Circuito integrato;LM358;op-amp doppio;DIP-8;6;4;Cassettiera D, cassetto 1;;0,25;
+19;Circuito integrato;LM7805;regolatore 5 V 1 A;TO-220;3;4;Cassettiera D, cassetto 2;;0,4;
+20;Connettore;Pin header maschio;2,54 mm 40 poli;THT;20;5;Scatola connettori;;0,15;
+21;Elettromeccanico;Pulsante tattile;6x6 mm;THT;30;10;Scatola varie;;0,05;
+22;Sensore;DHT11;temperatura e umidità;modulo;3;1;Scatola sensori;;1,8;
+23;Modulo;Arduino Uno R3;;scheda;2;1;Armadio laboratorio;;22;
