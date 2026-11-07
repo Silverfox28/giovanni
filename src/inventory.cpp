@@ -193,7 +193,7 @@ Statistics Inventory::statistics() const {
     return s;
 }
 
-std::vector<std::string> Inventory::load(const std::string& path) {
+std::vector<std::string> Inventory::load(const std::filesystem::path& path) {
     std::vector<std::string> warnings;
     std::ifstream in(path, std::ios::binary);
     if (!in) {
@@ -203,7 +203,7 @@ std::vector<std::string> Inventory::load(const std::string& path) {
             nextId_ = 1;
             return warnings;  // primo avvio: nessun file, archivio vuoto
         }
-        throw std::runtime_error("impossibile aprire il file \"" + path + "\"");
+        throw std::runtime_error("impossibile aprire il file \"" + path.u8string() + "\"");
     }
 
     std::vector<Component> loaded;
@@ -276,7 +276,7 @@ std::vector<std::string> Inventory::load(const std::string& path) {
         }
         loaded.push_back(std::move(c));
     }
-    if (in.bad()) throw std::runtime_error("errore durante la lettura di \"" + path + "\"");
+    if (in.bad()) throw std::runtime_error("errore durante la lettura di \"" + path.u8string() + "\"");
 
     int next = usedIds.empty() ? 1 : *usedIds.rbegin() + 1;
     for (std::size_t index : withoutId) loaded[index].id = next++;
@@ -286,12 +286,13 @@ std::vector<std::string> Inventory::load(const std::string& path) {
     return warnings;
 }
 
-void Inventory::save(const std::string& path) const {
+void Inventory::save(const std::filesystem::path& path) const {
     namespace fs = std::filesystem;
-    const std::string tmpPath = path + ".tmp";
+    fs::path tmpPath = path;
+    tmpPath += ".tmp";
     {
         std::ofstream out(tmpPath, std::ios::binary | std::ios::trunc);
-        if (!out) throw std::runtime_error("impossibile scrivere il file \"" + tmpPath + "\"");
+        if (!out) throw std::runtime_error("impossibile scrivere il file \"" + tmpPath.u8string() + "\"");
 
         // Il BOM permette a Excel di riconoscere la codifica UTF-8 (lettere accentate, Ω, µ...).
         out << kUtf8Bom << csv::joinLine(kHeader, kSeparator) << '\n';
@@ -304,7 +305,7 @@ void Inventory::save(const std::string& path) const {
                 << '\n';
         }
         out.flush();
-        if (!out) throw std::runtime_error("errore durante la scrittura di \"" + tmpPath + "\"");
+        if (!out) throw std::runtime_error("errore durante la scrittura di \"" + tmpPath.u8string() + "\"");
     }
 
     std::error_code ec;
@@ -312,6 +313,6 @@ void Inventory::save(const std::string& path) const {
     if (ec) {
         std::error_code ignored;
         fs::remove(tmpPath, ignored);
-        throw std::runtime_error("impossibile salvare \"" + path + "\": " + ec.message());
+        throw std::runtime_error("impossibile salvare \"" + path.u8string() + "\": " + ec.message());
     }
 }

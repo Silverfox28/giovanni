@@ -1,6 +1,7 @@
 // Archivio dei componenti: inserimento, ricerca, statistiche e salvataggio su file CSV.
 #pragma once
 
+#include <filesystem>
 #include <optional>
 #include <string>
 #include <vector>
@@ -70,10 +71,10 @@ public:
 
     // Carica i dati dal file. Se il file non esiste l'archivio resta vuoto.
     // Restituisce gli avvisi sulle righe problematiche; lancia std::runtime_error se il file è illeggibile.
-    std::vector<std::string> load(const std::string& path);
+    std::vector<std::string> load(const std::filesystem::path& path);
 
     // Salva in modo sicuro (prima su un file temporaneo, poi lo sostituisce).
-    void save(const std::string& path) const;
+    void save(const std::filesystem::path& path) const;
 
 private:
     std::vector<Component> items_;

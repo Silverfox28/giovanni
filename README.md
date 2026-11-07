@@ -1,8 +1,12 @@
 # Catalogo componenti elettronici
 
-Programma in C++ (C++17, da terminale) per catalogare e gestire i componenti
-elettronici del proprio laboratorio: resistori, condensatori, integrati, LED,
-moduli e così via.
+Programma in C++ (C++17) per catalogare e gestire i componenti elettronici del
+proprio laboratorio: resistori, condensatori, integrati, LED, moduli e così via.
+
+Esistono due versioni, che usano lo stesso file di dati:
+
+- **`catalogo_gui`**: versione grafica, con finestre, tabella e pulsanti (richiede Qt);
+- **`catalogo`**: versione da terminale, a menu, senza librerie esterne.
 
 ## Funzionalità
 
@@ -26,9 +30,40 @@ moduli e così via.
 - **Salvataggio automatico** dopo ogni modifica, in un file CSV che si può
   aprire anche con Excel o LibreOffice Calc.
 
+## Versione grafica
+
+La finestra principale mostra la tabella dei componenti e, a destra, la scheda
+del componente selezionato (con il disegno delle bande colorate se è un resistore).
+
+- **Cerca** scrivendo nella casella in alto: il filtro si applica mentre scrivi.
+  Scegliendo *Resistore*, *Condensatore* o *Induttore* si può filtrare anche per
+  intervallo di valori (es. da `1k` a `10k`).
+- **Ordina** facendo clic sull'intestazione di una colonna.
+- **Doppio clic** (o F2) su una riga per modificarla; **tasto destro** per il
+  menu con Modifica, Duplica, Preleva, Carica ed Elimina.
+- **Duplica** crea un nuovo componente partendo da quello selezionato: comodo
+  per inserire una serie di resistori o condensatori.
+- Le righe **in rosso** sono i componenti da riordinare; il pulsante
+  *Componenti da riordinare* mostra solo quelli.
+- **Statistiche** e **Codice colori resistori** sono nel menu *Strumenti*.
+
+All'avvio riapre l'ultimo archivio usato; la prima volta crea `componenti.csv`
+nella cartella Documenti. Dal menu *File* si può aprire o creare un altro archivio.
+
+### Installare Qt
+
+- **Windows**: scaricare l'installer gratuito da <https://www.qt.io/download-qt-installer-oss>
+  (serve un account Qt) e installare *Qt 6.x → MinGW* e, tra gli strumenti, *Qt Creator*.
+  Poi aprire `CMakeLists.txt` con Qt Creator e premere il pulsante ▶ (Esegui).
+  Per copiare il programma su un altro PC senza Qt, usare `windeployqt catalogo_gui.exe`.
+- **Linux (Debian/Ubuntu)**: `sudo apt install qt6-base-dev cmake g++`
+- **macOS** (con Homebrew): `brew install qt cmake`
+
 ## Compilazione
 
-Serve un compilatore C++17 (GCC 9+, Clang 9+, Visual Studio 2019+).
+Serve un compilatore C++17 (GCC 9+, Clang 9+, Visual Studio 2019+). Per la
+versione grafica serve anche Qt 6 (oppure Qt 5.15); se Qt non è installato,
+CMake compila solo la versione da terminale.
 
 ### Con CMake (Linux, macOS, Windows)
 
@@ -37,8 +72,11 @@ cmake -S . -B build
 cmake --build build --config Release
 ```
 
-L'eseguibile si trova in `build/catalogo` (su Windows `build\Release\catalogo.exe`
-con Visual Studio, `build\catalogo.exe` con MinGW).
+Si ottengono `build/catalogo_gui` (versione grafica) e `build/catalogo`
+(versione da terminale); su Windows i file sono `.exe`, nella cartella `build\Release`
+con Visual Studio. Se Qt è installato in una cartella non standard, indicarla con
+`cmake -S . -B build -DCMAKE_PREFIX_PATH=C:/Qt/6.8.0/mingw_64`.
+Per compilare solo la versione da terminale: `cmake -S . -B build -DCATALOGO_GUI=OFF`.
 
 Per eseguire i test automatici:
 
@@ -46,7 +84,7 @@ Per eseguire i test automatici:
 ctest --test-dir build -C Release
 ```
 
-### Senza CMake, con un solo comando
+### Versione da terminale senza CMake, con un solo comando
 
 ```sh
 g++ -std=c++17 -O2 -Iinclude src/*.cpp -o catalogo
@@ -54,7 +92,7 @@ g++ -std=c++17 -O2 -Iinclude src/*.cpp -o catalogo
 
 Su Windows con MinGW il comando è lo stesso (si ottiene `catalogo.exe`).
 
-## Utilizzo
+## Versione da terminale
 
 ```sh
 ./catalogo                       # usa il file componenti.csv nella cartella corrente
@@ -62,7 +100,8 @@ Su Windows con MinGW il comando è lo stesso (si ottiene `catalogo.exe`).
 ./catalogo esempi/componenti_esempio.csv   # prova con i dati di esempio
 ```
 
-Si apre il menu principale:
+Si apre il menu principale (la versione grafica accetta lo stesso argomento:
+`catalogo_gui laboratorio.csv`):
 
 ```
 ==============================================
@@ -143,8 +182,15 @@ Transistor, Circuito integrato, Connettore, Elettromeccanico, Sensore, Modulo, A
 ## Struttura del progetto
 
 ```
-include/        intestazioni (.h)
-src/
+include/        intestazioni (.h) della logica comune
+gui/            versione grafica (Qt)
+  mainwindow.cpp      finestra principale
+  componentdialog.cpp finestra di inserimento/modifica
+  componentmodel.cpp  tabella dei componenti
+  colorcodedialog.cpp codice colori
+  statisticsdialog.cpp statistiche
+  resistorwidget.cpp  disegno del resistore con le bande
+src/            logica comune e versione da terminale
   main.cpp        avvio del programma
   app.cpp         menu e dialogo con l'utente
   console.cpp     lettura dell'input da tastiera

@@ -11,3 +11,5 @@ out/
 # Eseguibili compilati a mano
 catalogo
 catalogo.exe
+catalogo_gui
+catalogo_gui.exe
