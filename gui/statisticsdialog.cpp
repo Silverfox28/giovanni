@@ -12,6 +12,7 @@
 #include "inventory.h"
 #include "qtutil.h"
 #include "textutil.h"
+#include "theme.h"
 
 void showStatisticsDialog(const Inventory& inventory, QWidget* parent) {
     const Statistics s = inventory.statistics();
@@ -38,6 +39,8 @@ void showStatisticsDialog(const Inventory& inventory, QWidget* parent) {
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     table->setSelectionMode(QAbstractItemView::NoSelection);
     table->setFocusPolicy(Qt::NoFocus);
+    table->setShowGrid(false);
+    table->verticalHeader()->setDefaultSectionSize(30);
     table->setAlternatingRowColors(true);
     for (int row = 0; row < static_cast<int>(s.byCategory.size()); ++row) {
         const CategoryStats& cs = s.byCategory[static_cast<std::size_t>(row)];
@@ -45,6 +48,7 @@ void showStatisticsDialog(const Inventory& inventory, QWidget* parent) {
                                  QString::number(cs.pieces), toQ(text::formatMoney(cs.value))};
         for (int col = 0; col < 4; ++col) {
             auto* item = new QTableWidgetItem(cells[col]);
+            if (col == 0) item->setIcon(categoryIcon(cs.category));
             if (col > 0) item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             table->setItem(row, col, item);
         }

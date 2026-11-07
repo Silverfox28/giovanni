@@ -39,6 +39,9 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     void sort(int column, Qt::SortOrder order) override;
 
+    // Ridisegna la tabella (ad esempio dopo un cambio di tema).
+    void refreshAppearance();
+
 private:
     void applySort();
 

@@ -11,12 +11,14 @@
 #include <QStandardPaths>
 
 #include "mainwindow.h"
+#include "theme.h"
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
     QApplication::setOrganizationName(QStringLiteral("CatalogoComponenti"));
     QApplication::setApplicationName(QStringLiteral("Catalogo componenti"));
     QLocale::setDefault(QLocale(QLocale::Italian, QLocale::Italy));  // virgola nei numeri decimali
+    applyTheme(loadThemeMode());  // tema chiaro, a meno che l'utente non ne abbia scelto un altro
 
     QString path;
     const QStringList args = QApplication::arguments();

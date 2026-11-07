@@ -1,12 +1,14 @@
 #include "mainwindow.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
@@ -14,11 +16,11 @@
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
-#include <QScrollArea>
+#include <QPushButton>
 #include <QSettings>
-#include <QSplitter>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QTableView>
@@ -42,6 +44,7 @@
 namespace {
 
 const char* const kLastFileKey = "ultimoArchivio";
+const char* const kHiddenColumnsKey = "colonneNascoste";
 
 // Testo HTML con i link (http://, https://) resi cliccabili.
 QString linkify(const std::string& raw) {
@@ -74,15 +77,38 @@ QString ensureCsvSuffix(QString path) {
     return path;
 }
 
+QFrame* makeCard() {
+    auto* card = new QFrame;
+    card->setObjectName(QStringLiteral("card"));
+    return card;
+}
+
+// Riquadro riassuntivo con un titolo piccolo e un numero grande.
+QFrame* makeKpi(const QString& title, QLabel*& valueLabel) {
+    QFrame* card = makeCard();
+    auto* layout = new QVBoxLayout(card);
+    layout->setContentsMargins(16, 10, 16, 10);
+    layout->setSpacing(0);
+    auto* titleLabel = new QLabel(title.toUpper());
+    titleLabel->setObjectName(QStringLiteral("kpiTitle"));
+    valueLabel = new QLabel(QStringLiteral("0"));
+    valueLabel->setObjectName(QStringLiteral("kpiValue"));
+    layout->addWidget(titleLabel);
+    layout->addWidget(valueLabel);
+    return card;
+}
+
 }  // namespace
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
     model_ = new ComponentModel(this);
     createCentralWidget();
     createActions();
+    applyIcons();
     statusLabel_ = new QLabel;
     statusBar()->addWidget(statusLabel_, 1);
-    resize(1250, 720);
+    statusBar()->setSizeGripEnabled(false);
+    resize(1320, 780);
     refresh();
 }
 
@@ -99,23 +125,28 @@ void MainWindow::createActions() {
 
     // --- Menu Componenti ---
     QMenu* compMenu = menuBar()->addMenu(QStringLiteral("&Componenti"));
-    actAdd_ = compMenu->addAction(QStringLiteral("&Nuovo componente..."), this, &MainWindow::addComponent);
+    actAdd_ = compMenu->addAction(QStringLiteral("Nuovo"), this, &MainWindow::addComponent);
     actAdd_->setShortcut(QKeySequence::New);
-    actEdit_ = compMenu->addAction(QStringLiteral("&Modifica..."), this, &MainWindow::editComponent);
+    actAdd_->setToolTip(QStringLiteral("Aggiungi un nuovo componente (Ctrl+N)"));
+    actEdit_ = compMenu->addAction(QStringLiteral("Modifica"), this, &MainWindow::editComponent);
     actEdit_->setShortcut(Qt::Key_F2);
-    actDuplicate_ = compMenu->addAction(QStringLiteral("&Duplica..."), this, &MainWindow::duplicateComponent);
+    actEdit_->setToolTip(QStringLiteral("Modifica il componente selezionato (F2 o doppio clic)"));
+    actDuplicate_ = compMenu->addAction(QStringLiteral("Duplica"), this, &MainWindow::duplicateComponent);
     actDuplicate_->setShortcut(QKeySequence(QStringLiteral("Ctrl+D")));
     actDuplicate_->setToolTip(QStringLiteral("Crea un nuovo componente partendo da quello selezionato"));
     compMenu->addSeparator();
-    actWithdraw_ = compMenu->addAction(QStringLiteral("&Preleva..."), this, [this] { changeQuantity(true); });
+    actWithdraw_ = compMenu->addAction(QStringLiteral("Preleva"), this, [this] { changeQuantity(true); });
     actWithdraw_->setShortcut(QKeySequence(QStringLiteral("Ctrl+-")));
-    actRestock_ = compMenu->addAction(QStringLiteral("&Carica..."), this, [this] { changeQuantity(false); });
+    actWithdraw_->setToolTip(QStringLiteral("Togli dei pezzi dal magazzino"));
+    actRestock_ = compMenu->addAction(QStringLiteral("Carica"), this, [this] { changeQuantity(false); });
     actRestock_->setShortcut(QKeySequence(QStringLiteral("Ctrl++")));
+    actRestock_->setToolTip(QStringLiteral("Aggiungi dei pezzi al magazzino"));
     compMenu->addSeparator();
-    actDelete_ = compMenu->addAction(QStringLiteral("&Elimina"), this, &MainWindow::deleteComponent);
+    actDelete_ = compMenu->addAction(QStringLiteral("Elimina"), this, &MainWindow::deleteComponent);
     actDelete_->setShortcut(QKeySequence::Delete);
+    actDelete_->setToolTip(QStringLiteral("Elimina il componente selezionato"));
     compMenu->addSeparator();
-    QAction* actFind = compMenu->addAction(QStringLiteral("&Cerca"), this, [this] {
+    QAction* actFind = compMenu->addAction(QStringLiteral("Cerca"), this, [this] {
         search_->setFocus();
         search_->selectAll();
     });
@@ -123,9 +154,30 @@ void MainWindow::createActions() {
 
     // --- Menu Strumenti ---
     QMenu* toolsMenu = menuBar()->addMenu(QStringLiteral("&Strumenti"));
-    QAction* actLow = toolsMenu->addAction(QStringLiteral("Componenti da &riordinare"), this, &MainWindow::showLowStock);
-    QAction* actStats = toolsMenu->addAction(QStringLiteral("&Statistiche..."), this, &MainWindow::showStatistics);
-    QAction* actColors = toolsMenu->addAction(QStringLiteral("&Codice colori resistori..."), this, &MainWindow::showColorCode);
+    actLowStock_ = toolsMenu->addAction(QStringLiteral("Da riordinare"), this, &MainWindow::showLowStock);
+    actLowStock_->setToolTip(QStringLiteral("Mostra solo i componenti sotto la scorta minima"));
+    actStatistics_ = toolsMenu->addAction(QStringLiteral("Statistiche"), this, &MainWindow::showStatistics);
+    actColorCode_ = toolsMenu->addAction(QStringLiteral("Codice colori"), this, &MainWindow::showColorCode);
+    actColorCode_->setToolTip(QStringLiteral("Codice colori dei resistori"));
+
+    // --- Menu Visualizza: scelta del tema ---
+    QMenu* viewMenu = menuBar()->addMenu(QStringLiteral("&Visualizza"));
+    QMenu* themeMenu = viewMenu->addMenu(QStringLiteral("Tema"));
+    auto* themeGroup = new QActionGroup(this);
+    const std::pair<ThemeMode, QString> themes[] = {
+        {ThemeMode::Light, QStringLiteral("Chiaro")},
+        {ThemeMode::Dark, QStringLiteral("Scuro")},
+        {ThemeMode::System, QStringLiteral("Come il sistema")},
+    };
+    const ThemeMode savedMode = loadThemeMode();
+    for (const auto& [mode, label] : themes) {
+        QAction* action = themeMenu->addAction(label);
+        action->setCheckable(true);
+        action->setChecked(mode == savedMode);
+        themeGroup->addAction(action);
+        const ThemeMode m = mode;
+        connect(action, &QAction::triggered, this, [this, m] { setThemeMode(m); });
+    }
 
     QMenu* helpMenu = menuBar()->addMenu(QStringLiteral("&?"));
     helpMenu->addAction(QStringLiteral("&Informazioni"), this, &MainWindow::showAbout);
@@ -133,7 +185,8 @@ void MainWindow::createActions() {
     // --- Barra degli strumenti ---
     QToolBar* toolbar = addToolBar(QStringLiteral("Principale"));
     toolbar->setMovable(false);
-    toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    toolbar->setIconSize(QSize(24, 24));
     toolbar->addAction(actAdd_);
     toolbar->addAction(actEdit_);
     toolbar->addAction(actDuplicate_);
@@ -142,9 +195,9 @@ void MainWindow::createActions() {
     toolbar->addAction(actWithdraw_);
     toolbar->addAction(actRestock_);
     toolbar->addSeparator();
-    toolbar->addAction(actLow);
-    toolbar->addAction(actStats);
-    toolbar->addAction(actColors);
+    toolbar->addAction(actLowStock_);
+    toolbar->addAction(actStatistics_);
+    toolbar->addAction(actColorCode_);
 
     // Menu contestuale della tabella (tasto destro).
     table_->setContextMenuPolicy(Qt::ActionsContextMenu);
@@ -153,84 +206,208 @@ void MainWindow::createActions() {
     table_->addAction(actWithdraw_);
     table_->addAction(actRestock_);
     table_->addAction(actDelete_);
+
+    connect(detailWithdraw_, &QPushButton::clicked, actWithdraw_, &QAction::trigger);
+    connect(detailRestock_, &QPushButton::clicked, actRestock_, &QAction::trigger);
+    connect(detailEdit_, &QPushButton::clicked, actEdit_, &QAction::trigger);
 }
 
-void MainWindow::createCentralWidget() {
-    // --- Filtri ---
+void MainWindow::applyIcons() {
+    const ThemeColors& t = theme();
+    actAdd_->setIcon(makeIcon(IconKind::Add, t.accent));
+    actEdit_->setIcon(makeIcon(IconKind::Edit, t.text));
+    actDuplicate_->setIcon(makeIcon(IconKind::Duplicate, t.text));
+    actDelete_->setIcon(makeIcon(IconKind::Delete, t.dangerFg));
+    actWithdraw_->setIcon(makeIcon(IconKind::Withdraw, t.text));
+    actRestock_->setIcon(makeIcon(IconKind::Restock, t.text));
+    actLowStock_->setIcon(makeIcon(IconKind::Reorder, t.dangerFg));
+    actStatistics_->setIcon(makeIcon(IconKind::Statistics, t.text));
+    actColorCode_->setIcon(makeIcon(IconKind::ColorCode, t.text));
+    searchIcon_->setIcon(makeIcon(IconKind::Search, t.muted));
+    detailWithdraw_->setIcon(makeIcon(IconKind::Withdraw, t.text));
+    detailRestock_->setIcon(makeIcon(IconKind::Restock, t.text));
+    detailEdit_->setIcon(makeIcon(IconKind::Edit, t.accentText));
+}
+
+void MainWindow::restoreHiddenColumns() {
+    // Per impostazione predefinita fornitore e prezzo si vedono solo nella scheda a destra.
+    const QVariant saved = QSettings().value(kHiddenColumnsKey);
+    QList<int> hidden = {ComponentModel::ColSupplier, ComponentModel::ColPrice};
+    if (saved.isValid()) {
+        hidden.clear();
+        for (const QVariant& v : saved.toList()) hidden << v.toInt();
+    }
+    for (int col = 0; col < ComponentModel::ColumnCount; ++col) {
+        table_->setColumnHidden(col, hidden.contains(col) && col != ComponentModel::ColName);
+    }
+}
+
+void MainWindow::showColumnMenu(const QPoint& position) {
+    QMenu menu(this);
+    menu.addSection(QStringLiteral("Colonne visibili"));
+    for (int col = 0; col < ComponentModel::ColumnCount; ++col) {
+        QAction* action = menu.addAction(model_->headerData(col, Qt::Horizontal, Qt::DisplayRole).toString());
+        action->setCheckable(true);
+        action->setChecked(!table_->isColumnHidden(col));
+        action->setEnabled(col != ComponentModel::ColName);  // la sigla resta sempre visibile
+        connect(action, &QAction::toggled, this, [this, col](bool visible) {
+            table_->setColumnHidden(col, !visible);
+            QVariantList hidden;
+            for (int c = 0; c < ComponentModel::ColumnCount; ++c) {
+                if (table_->isColumnHidden(c)) hidden << c;
+            }
+            QSettings().setValue(kHiddenColumnsKey, hidden);
+        });
+    }
+    menu.exec(table_->horizontalHeader()->viewport()->mapToGlobal(position));
+}
+
+void MainWindow::setThemeMode(ThemeMode mode) {
+    saveThemeMode(mode);
+    applyTheme(mode);
+    applyIcons();
+    model_->refreshAppearance();
+    updateSummary();
+    updateDetails();
+}
+
+QWidget* MainWindow::createSummaryBar() {
+    auto* bar = new QWidget;
+    auto* layout = new QHBoxLayout(bar);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(12);
+    layout->addWidget(makeKpi(QStringLiteral("Componenti"), kpiItems_));
+    layout->addWidget(makeKpi(QStringLiteral("Pezzi in magazzino"), kpiPieces_));
+    layout->addWidget(makeKpi(QStringLiteral("Da riordinare"), kpiLow_));
+    layout->addWidget(makeKpi(QStringLiteral("Valore stimato"), kpiValue_));
+    return bar;
+}
+
+QWidget* MainWindow::createFilterBar() {
     search_ = new QLineEdit;
-    search_->setPlaceholderText(QStringLiteral("Cerca: sigla, valore (es. 4k7), package, posizione, note..."));
+    search_->setPlaceholderText(QStringLiteral("Cerca per sigla, valore (es. 4k7), package, posizione, note..."));
     search_->setClearButtonEnabled(true);
+    searchIcon_ = search_->addAction(QIcon(), QLineEdit::LeadingPosition);
 
     categoryFilter_ = new QComboBox;
     categoryFilter_->addItem(QStringLiteral("Tutte le categorie"), -1);
     const auto& categories = allCategories();
     for (std::size_t i = 0; i < categories.size(); ++i) {
-        categoryFilter_->addItem(toQ(categoryName(categories[i])), static_cast<int>(i));
+        categoryFilter_->addItem(categoryIcon(categories[i]), toQ(categoryName(categories[i])), static_cast<int>(i));
     }
 
     rangeLabel_ = new QLabel(QStringLiteral("Valore da"));
     minValue_ = new QLineEdit;
     maxValue_ = new QLineEdit;
     for (QLineEdit* e : {minValue_, maxValue_}) {
-        e->setMaximumWidth(80);
+        e->setFixedWidth(90);
         e->setClearButtonEnabled(true);
     }
     minValue_->setPlaceholderText(QStringLiteral("min"));
     maxValue_->setPlaceholderText(QStringLiteral("max"));
     lowStockOnly_ = new QCheckBox(QStringLiteral("Solo da riordinare"));
 
-    auto* filters = new QHBoxLayout;
-    filters->addWidget(search_, 1);
-    filters->addWidget(categoryFilter_);
-    filters->addWidget(rangeLabel_);
-    filters->addWidget(minValue_);
-    filters->addWidget(new QLabel(QStringLiteral("a")));
-    filters->addWidget(maxValue_);
-    filters->addWidget(lowStockOnly_);
+    QFrame* card = makeCard();
+    auto* layout = new QHBoxLayout(card);
+    layout->setContentsMargins(10, 8, 10, 8);
+    layout->setSpacing(8);
+    layout->addWidget(search_, 1);
+    layout->addWidget(categoryFilter_);
+    layout->addSpacing(6);
+    layout->addWidget(rangeLabel_);
+    layout->addWidget(minValue_);
+    layout->addWidget(new QLabel(QStringLiteral("a")));
+    layout->addWidget(maxValue_);
+    layout->addSpacing(6);
+    layout->addWidget(lowStockOnly_);
+    return card;
+}
 
-    // --- Tabella ---
-    table_ = new QTableView;
-    table_->setModel(model_);
-    table_->setSelectionBehavior(QAbstractItemView::SelectRows);
-    table_->setSelectionMode(QAbstractItemView::SingleSelection);
-    table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    table_->setAlternatingRowColors(true);
-    table_->verticalHeader()->hide();
-    table_->horizontalHeader()->setStretchLastSection(true);
-    table_->horizontalHeader()->setSortIndicator(ComponentModel::ColCategory, Qt::AscendingOrder);
-    table_->setSortingEnabled(true);
-    table_->setWordWrap(false);
+QWidget* MainWindow::createDetailPanel() {
+    QFrame* card = makeCard();
+    card->setFixedWidth(340);
 
-    // --- Scheda del componente selezionato ---
+    detailTitle_ = new QLabel;
+    detailTitle_->setObjectName(QStringLiteral("detailTitle"));
+    detailTitle_->setWordWrap(true);
+
+    detailCategory_ = new QLabel;
+    detailStatus_ = new QLabel;
+    auto* pills = new QHBoxLayout;
+    pills->setSpacing(6);
+    pills->addWidget(detailCategory_);
+    pills->addWidget(detailStatus_);
+    pills->addStretch();
+
     details_ = new QLabel;
     details_->setWordWrap(true);
     details_->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     details_->setTextFormat(Qt::RichText);
     details_->setOpenExternalLinks(true);
     details_->setTextInteractionFlags(Qt::TextBrowserInteraction);
+
     detailResistor_ = new ResistorWidget;
 
-    auto* detailPanel = new QWidget;
-    auto* detailLayout = new QVBoxLayout(detailPanel);
-    detailLayout->addWidget(details_);
-    detailLayout->addWidget(detailResistor_);
-    detailLayout->addStretch();
-    auto* detailScroll = new QScrollArea;
-    detailScroll->setWidget(detailPanel);
-    detailScroll->setWidgetResizable(true);
-    detailScroll->setMinimumWidth(280);
+    detailWithdraw_ = new QPushButton(QStringLiteral("Preleva"));
+    detailRestock_ = new QPushButton(QStringLiteral("Carica"));
+    detailEdit_ = new QPushButton(QStringLiteral("Modifica"));
+    detailEdit_->setObjectName(QStringLiteral("primary"));
+    detailButtons_ = new QWidget;
+    auto* buttons = new QHBoxLayout(detailButtons_);
+    buttons->setContentsMargins(0, 0, 0, 0);
+    buttons->addWidget(detailWithdraw_);
+    buttons->addWidget(detailRestock_);
+    buttons->addWidget(detailEdit_);
 
-    auto* splitter = new QSplitter;
-    splitter->addWidget(table_);
-    splitter->addWidget(detailScroll);
-    splitter->setStretchFactor(0, 3);
-    splitter->setStretchFactor(1, 1);
-    splitter->setSizes({900, 340});
+    auto* layout = new QVBoxLayout(card);
+    layout->setContentsMargins(18, 16, 18, 16);
+    layout->setSpacing(10);
+    layout->addWidget(detailTitle_);
+    layout->addLayout(pills);
+    layout->addWidget(details_);
+    layout->addWidget(detailResistor_);
+    layout->addStretch();
+    layout->addWidget(detailButtons_);
+    return card;
+}
+
+void MainWindow::createCentralWidget() {
+    table_ = new QTableView;
+    table_->setModel(model_);
+    table_->setSelectionBehavior(QAbstractItemView::SelectRows);
+    table_->setSelectionMode(QAbstractItemView::SingleSelection);
+    table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table_->setAlternatingRowColors(true);
+    table_->setShowGrid(false);
+    table_->setWordWrap(false);
+    table_->setIconSize(QSize(12, 12));
+    table_->verticalHeader()->hide();
+    table_->verticalHeader()->setDefaultSectionSize(32);
+    QHeaderView* header = table_->horizontalHeader();
+    header->setHighlightSections(false);
+    header->setDefaultAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    header->setSectionResizeMode(QHeaderView::ResizeToContents);
+    header->setSectionResizeMode(ComponentModel::ColName, QHeaderView::Stretch);
+    header->setSectionResizeMode(ComponentModel::ColLocation, QHeaderView::Stretch);
+    header->setSortIndicator(ComponentModel::ColCategory, Qt::AscendingOrder);
+    header->setContextMenuPolicy(Qt::CustomContextMenu);
+    header->setToolTip(QStringLiteral("Clic per ordinare, tasto destro per scegliere le colonne"));
+    connect(header, &QHeaderView::customContextMenuRequested, this, &MainWindow::showColumnMenu);
+    table_->setSortingEnabled(true);
+    restoreHiddenColumns();
+
+    auto* content = new QHBoxLayout;
+    content->setSpacing(12);
+    content->addWidget(table_, 1);
+    content->addWidget(createDetailPanel());
 
     auto* central = new QWidget;
     auto* layout = new QVBoxLayout(central);
-    layout->addLayout(filters);
-    layout->addWidget(splitter, 1);
+    layout->setContentsMargins(14, 12, 14, 12);
+    layout->setSpacing(12);
+    layout->addWidget(createSummaryBar());
+    layout->addWidget(createFilterBar());
+    layout->addLayout(content, 1);
     setCentralWidget(central);
 
     // --- Collegamenti ---
@@ -281,8 +458,6 @@ bool MainWindow::openFile(const QString& path) {
     currentId_ = 0;
     QSettings().setValue(kLastFileKey, filePath_);
     clearFilters();
-    refresh();
-    table_->resizeColumnsToContents();
     updateTitle();
 
     if (!warnings.empty()) {
@@ -313,7 +488,6 @@ void MainWindow::newArchive() {
     if (!persist()) return;
     QSettings().setValue(kLastFileKey, filePath_);
     clearFilters();
-    refresh();
     updateTitle();
 }
 
@@ -343,7 +517,7 @@ void MainWindow::saveArchiveAs() {
         filePath_ = QFileInfo(path).absoluteFilePath();
         QSettings().setValue(kLastFileKey, filePath_);
         updateTitle();
-        updateStatusBar();
+        updateSummary();
     }
 }
 
@@ -540,12 +714,14 @@ void MainWindow::showAbout() {
 }
 
 void MainWindow::clearFilters() {
-    const QSignalBlocker b1(search_), b2(categoryFilter_), b3(minValue_), b4(maxValue_), b5(lowStockOnly_);
+    // I segnali non vengono bloccati (servono alle caselle per aggiornarsi): si sospende solo l'aggiornamento.
+    clearingFilters_ = true;
     search_->clear();
     categoryFilter_->setCurrentIndex(0);
     minValue_->clear();
     maxValue_->clear();
     lowStockOnly_->setChecked(false);
+    clearingFilters_ = false;
     updateRangeFilter();
     refresh();
 }
@@ -564,6 +740,7 @@ void MainWindow::updateRangeFilter() {
 }
 
 void MainWindow::refresh() {
+    if (clearingFilters_) return;
     SearchFilter filter;
     filter.query = toStd(search_->text());
     if (const int idx = categoryFilter_->currentData().toInt(); idx >= 0) {
@@ -578,7 +755,7 @@ void MainWindow::refresh() {
             return std::nullopt;
         }
         const auto v = units::parseValue(toStd(t));
-        edit->setStyleSheet(v ? QString() : QStringLiteral("color: #c0392b;"));
+        edit->setStyleSheet(v ? QString() : QStringLiteral("color: %1;").arg(theme().dangerFg.name()));
         return v;
     };
     filter.minValue = readBound(minValue_);
@@ -587,47 +764,74 @@ void MainWindow::refresh() {
     model_->setComponents(inventory_.search(filter));
     updateDetails();
     updateActions();
-    updateStatusBar();
+    updateSummary();
 }
 
 void MainWindow::updateDetails() {
+    const ThemeColors& t = theme();
     const Component* c = selectedComponent();
     if (!c) {
-        details_->setText(inventory_.empty()
-                              ? QStringLiteral("<p>L'archivio è vuoto.</p><p>Usa <b>Nuovo componente</b> per "
-                                               "inserire il primo componente.</p>")
-                              : QStringLiteral("<p style='color:gray'>Seleziona un componente per vederne la "
-                                               "scheda.</p>"));
-        detailResistor_->clear();
+        detailTitle_->setText(inventory_.empty() ? QStringLiteral("Archivio vuoto")
+                                                 : QStringLiteral("Nessun componente selezionato"));
+        detailCategory_->hide();
+        detailStatus_->hide();
+        details_->setText(
+            QStringLiteral("<p style='color:%1'>%2</p>")
+                .arg(t.muted.name(),
+                     inventory_.empty() ? QStringLiteral("Premi <b>Nuovo</b> per inserire il primo componente.")
+                                        : QStringLiteral("Seleziona un componente nella tabella per vederne la "
+                                                         "scheda.")));
         detailResistor_->hide();
+        detailButtons_->hide();
         return;
     }
 
-    auto row = [](const QString& label, const QString& value) {
-        return QStringLiteral("<tr><td style='color:gray; padding-right:10px'>%1</td><td>%2</td></tr>").arg(label, value);
+    detailTitle_->setText(toQ(c->name));
+
+    const QColor catColor = categoryColor(c->category);
+    detailCategory_->setText(toQ(categoryName(c->category)) + QStringLiteral("  #") + QString::number(c->id));
+    detailCategory_->setStyleSheet(pillStyle(t.dark ? catColor.darker(160) : catColor.lighter(175),
+                                             t.dark ? catColor.lighter(150) : catColor.darker(150)));
+    detailCategory_->show();
+
+    if (c->quantity == 0) {
+        detailStatus_->setText(QStringLiteral("Esaurito"));
+        detailStatus_->setStyleSheet(pillStyle(t.dangerBg, t.dangerFg));
+    } else if (c->isLowStock()) {
+        detailStatus_->setText(QStringLiteral("Da riordinare"));
+        detailStatus_->setStyleSheet(pillStyle(t.dangerBg, t.dangerFg));
+    } else {
+        detailStatus_->setText(QStringLiteral("Disponibile"));
+        detailStatus_->setStyleSheet(pillStyle(t.successBg, t.successFg));
+    }
+    detailStatus_->show();
+
+    const QString labelStyle = QStringLiteral("color:%1; padding: 3px 14px 3px 0").arg(t.muted.name());
+    auto row = [&labelStyle](const QString& label, const QString& value) {
+        return QStringLiteral("<tr><td style='%1'>%2</td><td style='padding: 3px 0'>%3</td></tr>")
+            .arg(labelStyle, label, value);
     };
-    QString html = QStringLiteral("<h2 style='margin-bottom:0'>%1</h2>").arg(toQ(c->name).toHtmlEscaped());
-    html += QStringLiteral("<p style='color:gray; margin-top:2px'>%1 · #%2</p>")
-                .arg(toQ(categoryName(c->category)).toHtmlEscaped())
-                .arg(c->id);
-    if (c->isLowStock()) {
-        html += QStringLiteral("<p style='color:#c0392b'><b>Da riordinare</b>: quantità pari o sotto la scorta "
-                               "minima.</p>");
-    }
-    html += QStringLiteral("<table cellspacing='3'>");
-    QString value = toQ(c->displayValue()).toHtmlEscaped();
+    QString value = QStringLiteral("<b>%1</b>").arg(toQ(c->displayValue()).toHtmlEscaped());
     if (!c->value.empty() && c->displayValue() != c->value) {
-        value += QStringLiteral(" <span style='color:gray'>(%1)</span>").arg(toQ(c->value).toHtmlEscaped());
+        value += QStringLiteral(" <span style='color:%1'>(%2)</span>").arg(t.muted.name(), toQ(c->value).toHtmlEscaped());
     }
-    html += row(QStringLiteral("Valore"), QStringLiteral("<b>%1</b>").arg(value));
+    const QString quantityColor = c->isLowStock() ? t.dangerFg.name() : t.text.name();
+
+    QString html = QStringLiteral("<table cellspacing='0'>");
+    html += row(QStringLiteral("Valore"), value);
     html += row(QStringLiteral("Package"), toQ(c->package).toHtmlEscaped());
-    html += row(QStringLiteral("Quantità"), QStringLiteral("<b>%1</b>").arg(c->quantity));
-    html += row(QStringLiteral("Scorta minima"), QString::number(c->minQuantity));
+    html += row(QStringLiteral("Quantità"),
+                QStringLiteral("<b style='color:%1'>%2</b> <span style='color:%3'>(minimo %4)</span>")
+                    .arg(quantityColor)
+                    .arg(c->quantity)
+                    .arg(t.muted.name())
+                    .arg(c->minQuantity));
     html += row(QStringLiteral("Posizione"), toQ(c->location).toHtmlEscaped());
-    html += row(QStringLiteral("Fornitore"), toQ(c->supplier).toHtmlEscaped());
+    if (!c->supplier.empty()) html += row(QStringLiteral("Fornitore"), toQ(c->supplier).toHtmlEscaped());
     if (c->unitPrice > 0) {
-        html += row(QStringLiteral("Prezzo unitario"), toQ(text::formatDecimalTrim(c->unitPrice, 4) + " €"));
-        html += row(QStringLiteral("Valore scorta"), toQ(text::formatMoney(c->stockValue())));
+        html += row(QStringLiteral("Prezzo"), toQ(text::formatDecimalTrim(c->unitPrice, 4) + " €") +
+                                                  QStringLiteral(" <span style='color:%1'>(scorta %2)</span>")
+                                                      .arg(t.muted.name(), toQ(text::formatMoney(c->stockValue()))));
     }
     if (!c->notes.empty()) html += row(QStringLiteral("Note"), linkify(c->notes));
 
@@ -635,8 +839,7 @@ void MainWindow::updateDetails() {
     if (!bands.empty()) {
         QStringList names;
         for (const std::string& b : bands) names << toQ(b);
-        html += row(QStringLiteral("Codice colori"),
-                    names.join(QStringLiteral(" – ")) + QStringLiteral(" + tolleranza"));
+        html += row(QStringLiteral("Colori"), names.join(QStringLiteral(" – ")));
     }
     html += QStringLiteral("</table>");
     details_->setText(html);
@@ -648,6 +851,7 @@ void MainWindow::updateDetails() {
         detailResistor_->setBands(bands);
         detailResistor_->show();
     }
+    detailButtons_->show();
 }
 
 void MainWindow::updateActions() {
@@ -660,21 +864,26 @@ void MainWindow::updateActions() {
     actWithdraw_->setEnabled(hasFile && c && c->quantity > 0);
     actRestock_->setEnabled(hasFile && c);
     actSaveAs_->setEnabled(hasFile);
+    detailWithdraw_->setEnabled(actWithdraw_->isEnabled());
+    detailRestock_->setEnabled(actRestock_->isEnabled());
+    detailEdit_->setEnabled(actEdit_->isEnabled());
 }
 
-void MainWindow::updateStatusBar() {
+void MainWindow::updateSummary() {
     const Statistics s = inventory_.statistics();
+    kpiItems_->setText(QString::number(s.items));
+    kpiPieces_->setText(QString::number(s.pieces));
+    kpiLow_->setText(QString::number(s.lowStock));
+    kpiLow_->setStyleSheet(s.lowStock > 0 ? QStringLiteral("color: %1;").arg(theme().dangerFg.name()) : QString());
+    kpiValue_->setText(toQ(text::formatMoney(s.value)));
+
     QString status;
     if (model_->rowCount() != s.items) {
         status = QStringLiteral("Visualizzati %1 di %2 componenti").arg(model_->rowCount()).arg(s.items);
     } else {
         status = QStringLiteral("%1 componenti").arg(s.items);
     }
-    status += QStringLiteral("  ·  %1 pezzi  ·  %2 da riordinare  ·  valore %3")
-                  .arg(s.pieces)
-                  .arg(s.lowStock)
-                  .arg(toQ(text::formatMoney(s.value)));
-    if (!filePath_.isEmpty()) status += QStringLiteral("  ·  %1").arg(QDir::toNativeSeparators(filePath_));
+    if (!filePath_.isEmpty()) status += QStringLiteral("   ·   Archivio: %1").arg(QDir::toNativeSeparators(filePath_));
     statusLabel_->setText(status);
 }
 

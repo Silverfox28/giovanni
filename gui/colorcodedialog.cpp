@@ -15,6 +15,7 @@
 #include "inventory.h"
 #include "qtutil.h"
 #include "resistorwidget.h"
+#include "theme.h"
 #include "units.h"
 
 namespace {
@@ -187,7 +188,7 @@ void ColorCodeDialog::updateDecode() {
     std::string error;
     const auto decoded = colorcode::decode(bands, error);
     if (!decoded) {
-        decodeResult_->setStyleSheet(QStringLiteral("color: #c0392b;"));
+        decodeResult_->setStyleSheet(QStringLiteral("color: %1;").arg(theme().dangerFg.name()));
         decodeResult_->setText(QStringLiteral("Combinazione non valida"));
         decodeStock_->setText(toQ(error));
         return;

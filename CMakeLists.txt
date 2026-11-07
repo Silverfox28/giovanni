@@ -48,6 +48,7 @@ if(CATALOGO_GUI)
       gui/colorcodedialog.cpp gui/colorcodedialog.h
       gui/statisticsdialog.cpp gui/statisticsdialog.h
       gui/resistorwidget.cpp gui/resistorwidget.h
+      gui/theme.cpp gui/theme.h
       gui/qtutil.h
     )
     set_target_properties(catalogo_gui PROPERTIES AUTOMOC ON)

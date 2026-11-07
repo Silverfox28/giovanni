@@ -32,13 +32,17 @@ Esistono due versioni, che usano lo stesso file di dati:
 
 ## Versione grafica
 
-La finestra principale mostra la tabella dei componenti e, a destra, la scheda
-del componente selezionato (con il disegno delle bande colorate se è un resistore).
+La finestra principale mostra in alto quattro riquadri riassuntivi (componenti,
+pezzi, componenti da riordinare e valore del magazzino), poi la tabella dei
+componenti e, a destra, la scheda del componente selezionato con i pulsanti
+Preleva, Carica e Modifica (e il disegno delle bande colorate se è un resistore).
 
 - **Cerca** scrivendo nella casella in alto: il filtro si applica mentre scrivi.
   Scegliendo *Resistore*, *Condensatore* o *Induttore* si può filtrare anche per
   intervallo di valori (es. da `1k` a `10k`).
-- **Ordina** facendo clic sull'intestazione di una colonna.
+- **Ordina** facendo clic sull'intestazione di una colonna; con il **tasto destro**
+  sull'intestazione si scelgono le colonne da mostrare (fornitore e prezzo sono
+  nascosti all'inizio, ma compaiono sempre nella scheda).
 - **Doppio clic** (o F2) su una riga per modificarla; **tasto destro** per il
   menu con Modifica, Duplica, Preleva, Carica ed Elimina.
 - **Duplica** crea un nuovo componente partendo da quello selezionato: comodo
@@ -46,6 +50,9 @@ del componente selezionato (con il disegno delle bande colorate se è un resisto
 - Le righe **in rosso** sono i componenti da riordinare; il pulsante
   *Componenti da riordinare* mostra solo quelli.
 - **Statistiche** e **Codice colori resistori** sono nel menu *Strumenti*.
+- **Tema**: dal menu *Visualizza → Tema* si sceglie fra *Chiaro* (predefinito),
+  *Scuro* e *Come il sistema*. Il programma ha un aspetto proprio, uguale su
+  Windows, macOS e Linux, indipendente dal tema del desktop.
 
 All'avvio riapre l'ultimo archivio usato; la prima volta crea `componenti.csv`
 nella cartella Documenti. Dal menu *File* si può aprire o creare un altro archivio.
@@ -190,6 +197,7 @@ gui/            versione grafica (Qt)
   colorcodedialog.cpp codice colori
   statisticsdialog.cpp statistiche
   resistorwidget.cpp  disegno del resistore con le bande
+  theme.cpp           temi chiaro/scuro, colori e icone
 src/            logica comune e versione da terminale
   main.cpp        avvio del programma
   app.cpp         menu e dialogo con l'utente

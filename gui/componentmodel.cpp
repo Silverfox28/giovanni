@@ -8,6 +8,7 @@
 
 #include "inventory.h"
 #include "qtutil.h"
+#include "theme.h"
 #include "textutil.h"
 
 ComponentModel::ComponentModel(QObject* parent) : QAbstractTableModel(parent) {}
@@ -67,12 +68,16 @@ QVariant ComponentModel::data(const QModelIndex& index, int role) const {
             }
             return static_cast<int>(Qt::AlignLeft | Qt::AlignVCenter);
 
+        case Qt::DecorationRole:
+            if (column == ColCategory) return categoryIcon(c->category);
+            break;
+
         case Qt::BackgroundRole:
-            if (c->isLowStock()) return QBrush(QColor(255, 226, 222));
+            if (c->isLowStock()) return QBrush(theme().dangerBg);
             break;
 
         case Qt::ForegroundRole:
-            if (c->isLowStock()) return QBrush(QColor(140, 20, 20));
+            if (c->isLowStock()) return QBrush(theme().dangerFg);
             break;
 
         case Qt::FontRole:
@@ -105,12 +110,16 @@ QVariant ComponentModel::headerData(int section, Qt::Orientation orientation, in
         case ColValue: return QStringLiteral("Valore");
         case ColPackage: return QStringLiteral("Package");
         case ColQuantity: return QStringLiteral("Quantità");
-        case ColMinQuantity: return QStringLiteral("Scorta min.");
+        case ColMinQuantity: return QStringLiteral("Min.");
         case ColLocation: return QStringLiteral("Posizione");
         case ColSupplier: return QStringLiteral("Fornitore");
-        case ColPrice: return QStringLiteral("Prezzo unit.");
+        case ColPrice: return QStringLiteral("Prezzo");
     }
     return {};
+}
+
+void ComponentModel::refreshAppearance() {
+    if (!items_.empty()) emit dataChanged(index(0, 0), index(rowCount() - 1, ColumnCount - 1));
 }
 
 void ComponentModel::sort(int column, Qt::SortOrder order) {

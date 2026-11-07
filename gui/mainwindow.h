@@ -5,6 +5,7 @@
 #include <QString>
 
 #include "inventory.h"
+#include "theme.h"
 
 class ComponentModel;
 class QAction;
@@ -12,6 +13,7 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QPushButton;
 class QTableView;
 class ResistorWidget;
 
@@ -26,7 +28,14 @@ public:
 
 private:
     void createActions();
+    QWidget* createSummaryBar();
+    QWidget* createFilterBar();
+    QWidget* createDetailPanel();
     void createCentralWidget();
+    void applyIcons();
+    void showColumnMenu(const QPoint& position);
+    void restoreHiddenColumns();
+    void setThemeMode(ThemeMode mode);
 
     void newArchive();
     void openArchive();
@@ -48,7 +57,7 @@ private:
     void updateRangeFilter();
     void updateDetails();
     void updateActions();
-    void updateStatusBar();
+    void updateSummary();
     void updateTitle();
 
     bool persist();
@@ -59,17 +68,37 @@ private:
     Inventory inventory_;
     QString filePath_;
     int currentId_ = 0;  // ID del componente selezionato (0 = nessuno)
+    bool clearingFilters_ = false;
 
     ComponentModel* model_ = nullptr;
     QTableView* table_ = nullptr;
+
+    // Filtri
     QLineEdit* search_ = nullptr;
+    QAction* searchIcon_ = nullptr;
     QComboBox* categoryFilter_ = nullptr;
     QLabel* rangeLabel_ = nullptr;
     QLineEdit* minValue_ = nullptr;
     QLineEdit* maxValue_ = nullptr;
     QCheckBox* lowStockOnly_ = nullptr;
+
+    // Riquadri riassuntivi
+    QLabel* kpiItems_ = nullptr;
+    QLabel* kpiPieces_ = nullptr;
+    QLabel* kpiLow_ = nullptr;
+    QLabel* kpiValue_ = nullptr;
+
+    // Scheda del componente selezionato
+    QLabel* detailTitle_ = nullptr;
+    QLabel* detailCategory_ = nullptr;
+    QLabel* detailStatus_ = nullptr;
     QLabel* details_ = nullptr;
     ResistorWidget* detailResistor_ = nullptr;
+    QWidget* detailButtons_ = nullptr;
+    QPushButton* detailWithdraw_ = nullptr;
+    QPushButton* detailRestock_ = nullptr;
+    QPushButton* detailEdit_ = nullptr;
+
     QLabel* statusLabel_ = nullptr;
 
     QAction* actAdd_ = nullptr;
@@ -78,5 +107,8 @@ private:
     QAction* actDelete_ = nullptr;
     QAction* actWithdraw_ = nullptr;
     QAction* actRestock_ = nullptr;
+    QAction* actLowStock_ = nullptr;
+    QAction* actStatistics_ = nullptr;
+    QAction* actColorCode_ = nullptr;
     QAction* actSaveAs_ = nullptr;
 };
