@@ -10,6 +10,7 @@
 #include <QStyleFactory>
 #include <QTemporaryDir>
 
+#include <functional>
 #include <map>
 
 namespace {

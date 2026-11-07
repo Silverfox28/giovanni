@@ -59,11 +59,26 @@ nella cartella Documenti. Dal menu *File* si può aprire o creare un altro archi
 
 ### Installare Qt
 
-- **Windows**: scaricare l'installer gratuito da <https://www.qt.io/download-qt-installer-oss>
-  (serve un account Qt) e installare *Qt 6.x → MinGW* e, tra gli strumenti, *Qt Creator*.
-  Poi aprire `CMakeLists.txt` con Qt Creator e premere il pulsante ▶ (Esegui).
-  Per copiare il programma su un altro PC senza Qt, usare `windeployqt catalogo_gui.exe`.
-- **Linux (Debian/Ubuntu)**: `sudo apt install qt6-base-dev cmake g++`
+- **Windows con Visual Studio (Visual C++)**:
+  1. nel *Visual Studio Installer* serve il carico di lavoro
+     *Sviluppo di applicazioni desktop con C++* (include CMake e Ninja);
+  2. con l'installer gratuito di Qt (<https://www.qt.io/download-qt-installer-oss>,
+     serve un account Qt) installare *Qt 6.x → MSVC 2022 64-bit*, nella cartella
+     predefinita `C:\Qt` (questa versione funziona anche con Visual Studio 2026);
+  3. in Visual Studio scegliere *File → Apri → Cartella* e aprire la cartella del
+     progetto: Visual Studio legge `CMakePresets.json` e trova Qt da solo in `C:\Qt`
+     (se Qt è altrove, impostare la variabile d'ambiente `QTDIR`, ad esempio
+     `C:\Qt\6.10.1\msvc2022_64`);
+  4. scegliere la configurazione *Windows x64 Release (Visual C++)* (o *Debug*),
+     selezionare `catalogo_gui.exe` come elemento di avvio e premere ▶.
+  Dopo la compilazione le librerie di Qt vengono copiate automaticamente accanto
+  a `catalogo_gui.exe` (in `out\build\x64-release`).
+- **Windows con Qt Creator (MinGW)**: in alternativa, installare *Qt 6.x → MinGW*
+  e *Qt Creator*, aprire `CMakeLists.txt` con Qt Creator e premere ▶.
+- Per copiare il programma su un altro PC senza Qt basta copiare tutta la cartella
+  che contiene `catalogo_gui.exe` (con le DLL); se quel PC non ha Visual Studio può
+  servire il *Microsoft Visual C++ Redistributable* (x64).
+- **Linux (Debian/Ubuntu)**: `sudo apt install qt6-base-dev libgl1-mesa-dev cmake g++`
 - **macOS** (con Homebrew): `brew install qt cmake`
 
 ## Compilazione

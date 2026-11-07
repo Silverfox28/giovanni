@@ -13,3 +13,7 @@ catalogo
 catalogo.exe
 catalogo_gui
 catalogo_gui.exe
+
+# Cartelle create da Visual Studio e dai preset di CMake
+out/
+CMakeUserPresets.json
